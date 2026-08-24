@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS review_state (
+    flashcard_id INTEGER PRIMARY KEY REFERENCES flashcards(id),
+    stability REAL NOT NULL DEFAULT 0.0,
+    difficulty REAL NOT NULL DEFAULT 0.0,
+    due_date TEXT NOT NULL,
+    last_reviewed_at TEXT,
+    review_count INTEGER NOT NULL DEFAULT 0
+);
 """
 
 

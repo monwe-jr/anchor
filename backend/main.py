@@ -1,19 +1,31 @@
 import os
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
 
-from db.schema import get_connection
+from db.schema import get_connection, init_db
 from engine.ollama import OllamaEngine
 from engine.resilient import resilient
 from generation.pipeline import run_pipeline
 from ingest import ingest
 from rag.chat import answer_question
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    conn = get_connection()
+    try:
+        init_db(conn)
+    finally:
+        conn.close()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],

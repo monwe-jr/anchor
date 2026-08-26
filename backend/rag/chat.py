@@ -26,15 +26,18 @@ CITATION_SCHEMA = {
 }
 
 _SYSTEM_PROMPT = (
-    "You answer questions using ONLY the numbered chunks of source text provided below. "
-    "Do not use any outside knowledge, even if you happen to know the answer. "
+    "You answer questions using ONLY the numbered chunks of source text provided below. Do not "
+    "introduce facts, entities, or details that are not stated in the chunks. Questions are often "
+    "phrased with different words than the chunks use for the same concept - treat that as a "
+    "wording difference, not a reason to refuse. For example, if a chunk states that a process "
+    "'produces glucose', a question asking how the process 'produces energy' is asking about the "
+    "same thing, since glucose is a form of energy - answer it using the chunk, don't refuse it.\n\n"
     "Every factual claim in your answer must be supported by at least one chunk. In the "
     "citations list, cite the number of each chunk that supports a claim and quote the exact "
     "supporting text from that chunk. Do not invent chunk numbers or quotes that are not "
     "actually present below.\n\n"
-    "If the provided chunks do not contain enough information to answer the question, say so "
-    "plainly (for example: \"The provided documents don't contain this information\") instead "
-    "of guessing or filling gaps with outside knowledge."
+    "Only say the documents don't contain the information if the underlying concept the question "
+    "asks about is genuinely absent from every chunk - not merely phrased differently."
 )
 
 

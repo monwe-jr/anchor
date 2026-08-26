@@ -13,6 +13,8 @@ from engine.resilient import resilient
 from generation.pipeline import run_pipeline
 from ingest import ingest
 from rag.chat import answer_question
+from study.fsrs import Grade
+from study.scheduler import get_due_cards, record_review
 
 
 @asynccontextmanager
@@ -127,3 +129,125 @@ async def ingest_document(request: Request) -> IngestResponse:
         conn.close()
 
     return IngestResponse(document_id=row["document_id"], job_id=job_id)
+
+
+class DocumentSummary(BaseModel):
+    id: int
+    source_name: str
+    source_type: str
+    created_at: str
+    job_status: str | None = None
+
+
+@app.get("/documents")
+def list_documents() -> list[DocumentSummary]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT d.id, d.source_name, d.source_type, d.created_at, j.status AS job_status
+            FROM documents d
+            LEFT JOIN jobs j ON j.id = (
+                SELECT id FROM jobs WHERE document_id = d.id ORDER BY id DESC LIMIT 1
+            )
+            ORDER BY d.id DESC
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [
+        DocumentSummary(
+            id=row["id"],
+            source_name=row["source_name"],
+            source_type=row["source_type"],
+            created_at=row["created_at"],
+            job_status=row["job_status"],
+        )
+        for row in rows
+    ]
+
+
+def _require_document(conn, document_id: int) -> None:
+    row = conn.execute("SELECT id FROM documents WHERE id = ?", (document_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+
+class Note(BaseModel):
+    id: int
+    content: str
+
+
+@app.get("/documents/{document_id}/notes")
+def get_document_notes(document_id: int) -> list[Note]:
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        rows = conn.execute(
+            "SELECT id, content FROM notes WHERE document_id = ? ORDER BY id", (document_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [Note(id=row["id"], content=row["content"]) for row in rows]
+
+
+class Flashcard(BaseModel):
+    id: int
+    question: str
+    answer: str
+
+
+@app.get("/documents/{document_id}/flashcards")
+def get_document_flashcards(document_id: int) -> list[Flashcard]:
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        rows = conn.execute(
+            "SELECT id, question, answer FROM flashcards WHERE document_id = ? ORDER BY id",
+            (document_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [Flashcard(id=row["id"], question=row["question"], answer=row["answer"]) for row in rows]
+
+
+class DueCard(BaseModel):
+    id: int
+    document_id: int
+    question: str
+    answer: str
+
+
+@app.get("/review/due")
+def review_due(limit: int = 20) -> list[DueCard]:
+    conn = get_connection()
+    try:
+        rows = get_due_cards(limit, conn=conn)
+    finally:
+        conn.close()
+
+    return [
+        DueCard(id=row["id"], document_id=row["document_id"], question=row["question"], answer=row["answer"])
+        for row in rows
+    ]
+
+
+class ReviewRequest(BaseModel):
+    grade: Grade
+
+
+@app.post("/review/{flashcard_id}")
+def review_flashcard(flashcard_id: int, request: ReviewRequest) -> dict:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM flashcards WHERE id = ?", (flashcard_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Flashcard {flashcard_id} not found")
+        record_review(flashcard_id, request.grade, conn=conn)
+    finally:
+        conn.close()
+
+    return {"status": "ok"}

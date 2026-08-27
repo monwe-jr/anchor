@@ -1,9 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ErrorBanner, Loading } from "@/app/components/StatusMessage";
+import { FileText, FileX2 } from "lucide-react";
+import { EmptyStateLink, ErrorBanner, Loading } from "@/app/components/StatusMessage";
+import { Badge, CardLink, PageHeader } from "@/app/components/ui";
 import { ApiError, DocumentSummary, api } from "@/lib/api";
+
+function statusVariant(status: string | null): "accent" | "success" | "danger" | "neutral" {
+  if (!status) return "neutral";
+  const s = status.toLowerCase();
+  if (["done", "complete", "completed", "ready"].includes(s)) return "success";
+  if (["failed", "error"].includes(s)) return "danger";
+  if (["queued", "processing", "pending", "running"].includes(s)) return "accent";
+  return "neutral";
+}
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentSummary[] | null>(null);
@@ -20,36 +30,49 @@ export default function DocumentsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Documents</h1>
+      <PageHeader
+        icon={FileText}
+        title="Documents"
+        description="Everything you've ingested, with generated notes and flashcards."
+      />
 
       {error && <ErrorBanner message={error} />}
       {!error && documents === null && <Loading label="Loading documents..." />}
+
       {documents !== null && documents.length === 0 && (
-        <p className="text-sm text-black/60 dark:text-white/60">
-          No documents yet. Go to Upload to ingest your first one.
-        </p>
+        <EmptyStateLink
+          icon={FileX2}
+          title="No documents yet"
+          description="Upload one to get started."
+          href="/upload"
+          label="Upload a document"
+        />
       )}
 
-      <ul className="flex flex-col gap-2">
-        {documents?.map((doc) => (
-          <li key={doc.id}>
-            <Link
-              href={`/documents/${doc.id}`}
-              className="flex items-center justify-between rounded border border-black/10 px-4 py-3 text-sm hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
-            >
-              <div>
-                <div className="font-medium">{doc.source_name}</div>
-                <div className="text-black/50 dark:text-white/50">
-                  {doc.source_type} &middot; {new Date(doc.created_at).toLocaleString()}
+      {documents && documents.length > 0 && (
+        <ul className="flex flex-col gap-3">
+          {documents.map((doc) => (
+            <li key={doc.id}>
+              <CardLink href={`/documents/${doc.id}`} className="flex items-center gap-4 p-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                  <FileText className="h-5 w-5" strokeWidth={2} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-foreground">
+                    {doc.source_name}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted">
+                    {doc.source_type} &middot; {new Date(doc.created_at).toLocaleString()}
+                  </div>
                 </div>
-              </div>
-              <span className="rounded bg-black/10 px-2 py-1 text-xs dark:bg-white/15">
-                {doc.job_status ?? "unknown"}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+                <Badge variant={statusVariant(doc.job_status)}>
+                  {doc.job_status ?? "unknown"}
+                </Badge>
+              </CardLink>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -2,7 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ErrorBanner, Loading } from "@/app/components/StatusMessage";
+import { FileText, HelpCircle, Layers, StickyNote } from "lucide-react";
+import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
+import { Card, PageHeader } from "@/app/components/ui";
 import { ApiError, Flashcard, Note, api } from "@/lib/api";
 
 export default function DocumentDetailPage() {
@@ -43,53 +45,74 @@ export default function DocumentDetailPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-xl font-semibold">Document #{documentId}</h1>
+      <PageHeader icon={FileText} title={`Document #${documentId}`} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Notes</h2>
-        {notes.length === 0 && (
-          <p className="text-sm text-black/60 dark:text-white/60">No notes generated.</p>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <StickyNote className="h-4 w-4 text-accent" strokeWidth={2.25} />
+          Notes
+        </h2>
+        {notes.length === 0 ? (
+          <EmptyState icon={StickyNote} title="No notes generated" />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {notes.map((note) => (
+              <li key={note.id}>
+                <Card className="p-4 text-sm text-foreground">{note.content}</Card>
+              </li>
+            ))}
+          </ul>
         )}
-        <ul className="flex flex-col gap-2">
-          {notes.map((note) => (
-            <li
-              key={note.id}
-              className="rounded border border-black/10 px-4 py-3 text-sm dark:border-white/15"
-            >
-              {note.content}
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Flashcards</h2>
-        {flashcards.length === 0 && (
-          <p className="text-sm text-black/60 dark:text-white/60">
-            No flashcards generated.
-          </p>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Layers className="h-4 w-4 text-accent" strokeWidth={2.25} />
+          Flashcards
+        </h2>
+        {flashcards.length === 0 ? (
+          <EmptyState icon={Layers} title="No flashcards generated" />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {flashcards.map((card) => {
+              const isRevealed = revealed.has(card.id);
+              return (
+                <li key={card.id}>
+                  <Card
+                    interactive
+                    className="cursor-pointer p-4 text-sm"
+                    onClick={() => toggleReveal(card.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleReveal(card.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex items-start gap-3">
+                      <HelpCircle
+                        className="mt-0.5 h-4 w-4 shrink-0 text-faint"
+                        strokeWidth={2}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-foreground">{card.question}</div>
+                        {isRevealed ? (
+                          <div className="mt-2 border-t border-border pt-2 text-muted">
+                            {card.answer}
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-xs text-faint">Click to reveal answer</div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
         )}
-        <ul className="flex flex-col gap-2">
-          {flashcards.map((card) => {
-            const isRevealed = revealed.has(card.id);
-            return (
-              <li
-                key={card.id}
-                className="cursor-pointer rounded border border-black/10 px-4 py-3 text-sm dark:border-white/15"
-                onClick={() => toggleReveal(card.id)}
-              >
-                <div className="font-medium">{card.question}</div>
-                {isRevealed ? (
-                  <div className="mt-2 text-black/70 dark:text-white/70">{card.answer}</div>
-                ) : (
-                  <div className="mt-2 text-xs text-black/40 dark:text-white/40">
-                    Click to reveal answer
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
       </section>
     </div>
   );

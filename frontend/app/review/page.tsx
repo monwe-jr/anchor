@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ErrorBanner, Loading } from "@/app/components/StatusMessage";
+import {
+  Eye,
+  Frown,
+  Layers,
+  PartyPopper,
+  RotateCcw,
+  Star,
+  ThumbsUp,
+} from "lucide-react";
+import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
+import { Button, Card, PageHeader } from "@/app/components/ui";
 import { ApiError, DueCard, Grade, api } from "@/lib/api";
 
-const GRADES: { grade: Grade; label: string; className: string }[] = [
-  { grade: "again", label: "Again", className: "bg-red-600 hover:bg-red-700" },
-  { grade: "hard", label: "Hard", className: "bg-orange-500 hover:bg-orange-600" },
-  { grade: "good", label: "Good", className: "bg-green-600 hover:bg-green-700" },
-  { grade: "easy", label: "Easy", className: "bg-blue-600 hover:bg-blue-700" },
+const GRADES: { grade: Grade; label: string; icon: typeof RotateCcw; className: string }[] = [
+  { grade: "again", label: "Again", icon: RotateCcw, className: "bg-red-600 hover:bg-red-500" },
+  { grade: "hard", label: "Hard", icon: Frown, className: "bg-orange-500 hover:bg-orange-400" },
+  { grade: "good", label: "Good", icon: ThumbsUp, className: "bg-green-600 hover:bg-green-500" },
+  { grade: "easy", label: "Easy", icon: Star, className: "bg-blue-600 hover:bg-blue-500" },
 ];
 
 export default function ReviewPage() {
@@ -48,13 +58,17 @@ export default function ReviewPage() {
 
   if (index >= cards.length) {
     return (
-      <div className="flex flex-col gap-2">
-        <h1 className="text-xl font-semibold">Review</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
-          {cards.length === 0
-            ? "No cards are due right now."
-            : "You're done for now — no more cards due."}
-        </p>
+      <div className="flex flex-col gap-6">
+        <PageHeader icon={Layers} title="Review" />
+        <EmptyState
+          icon={PartyPopper}
+          title={cards.length === 0 ? "No cards are due right now" : "You're all caught up!"}
+          description={
+            cards.length === 0
+              ? "Come back later once more cards are due."
+              : "No more cards due for now — nice work."
+          }
+        />
       </div>
     );
   }
@@ -63,33 +77,30 @@ export default function ReviewPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Review</h1>
-        <span className="text-sm text-black/50 dark:text-white/50">
-          {index + 1} / {cards.length}
-        </span>
-      </div>
+      <PageHeader
+        icon={Layers}
+        title="Review"
+        action={
+          <span className="text-sm text-muted">
+            {index + 1} / {cards.length}
+          </span>
+        }
+      />
 
       {error && <ErrorBanner message={error} />}
 
-      <div className="flex min-h-48 flex-col justify-between gap-6 rounded border border-black/10 p-6 dark:border-white/15">
+      <Card className="flex min-h-48 flex-col justify-between gap-6 p-6">
         <div className="flex flex-col gap-4">
-          <p className="text-lg">{card.question}</p>
+          <p className="text-lg text-foreground">{card.question}</p>
           {revealed && (
-            <p className="border-t border-black/10 pt-4 text-black/70 dark:border-white/15 dark:text-white/70">
-              {card.answer}
-            </p>
+            <p className="border-t border-border pt-4 text-muted">{card.answer}</p>
           )}
         </div>
 
         {!revealed ? (
-          <button
-            type="button"
-            onClick={() => setRevealed(true)}
-            className="w-fit rounded bg-black px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
-          >
+          <Button icon={Eye} onClick={() => setRevealed(true)}>
             Reveal answer
-          </button>
+          </Button>
         ) : (
           <div className="flex gap-2">
             {GRADES.map((g) => (
@@ -98,14 +109,15 @@ export default function ReviewPage() {
                 type="button"
                 disabled={grading}
                 onClick={() => handleGrade(g.grade)}
-                className={`flex-1 rounded px-3 py-2 text-sm font-medium text-white disabled:opacity-40 ${g.className}`}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${g.className}`}
               >
+                <g.icon className="h-4 w-4" strokeWidth={2.25} />
                 {g.label}
               </button>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

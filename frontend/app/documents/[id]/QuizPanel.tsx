@@ -13,7 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
-import { Badge, Button, Card } from "@/app/components/ui";
+import { Badge, Button, Card, ProgressBar, Stat } from "@/app/components/ui";
 import {
   ApiError,
   Difficulty,
@@ -35,10 +35,10 @@ const COUNTS = [5, 10, 15, 20];
 
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
-function masteryColor(percent: number) {
-  if (percent >= 80) return { text: "text-green-500", bar: "bg-green-500" };
-  if (percent >= 50) return { text: "text-amber-500", bar: "bg-amber-500" };
-  return { text: "text-red-500", bar: "bg-red-500" };
+function masteryColor(percent: number): { text: string; bar: "success" | "accent" | "danger" } {
+  if (percent >= 80) return { text: "text-success", bar: "success" };
+  if (percent >= 50) return { text: "text-accent", bar: "accent" };
+  return { text: "text-danger-foreground", bar: "danger" };
 }
 
 export default function QuizPanel({ documentId }: { documentId: number }) {
@@ -138,16 +138,16 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
     return (
       <div className="flex flex-col gap-4">
         {error && <ErrorBanner message={error} />}
-        <Card className="flex flex-col gap-5 p-5">
+        <Card className="flex flex-col gap-6 p-8">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Difficulty</h3>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-3 flex gap-2">
               {DIFFICULTIES.map((d) => (
                 <button
                   key={d.value}
                   type="button"
                   onClick={() => setDifficulty(d.value)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+                  className={`rounded-xl px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
                     difficulty === d.value
                       ? "bg-accent text-accent-foreground"
                       : "border border-border text-muted hover:bg-surface-hover hover:text-foreground"
@@ -164,7 +164,7 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
             <select
               value={count}
               onChange={(e) => setCount(Number(e.target.value))}
-              className="mt-2 w-fit rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+              className="mt-3 w-fit rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
             >
               {COUNTS.map((c) => (
                 <option key={c} value={c}>
@@ -197,21 +197,25 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
 
   if (stage === "taking") {
     const question = questions[index];
+    const progressPercent = ((index + (attemptResult ? 1 : 0)) / questions.length) * 100;
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <Badge variant="accent">{question.topic}</Badge>
-          <span className="text-sm text-muted">
-            Question {index + 1} of {questions.length}
-          </span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <Badge variant="accent">{question.topic}</Badge>
+            <span className="text-sm text-muted">
+              Question {index + 1} of {questions.length}
+            </span>
+          </div>
+          <ProgressBar percent={progressPercent} />
         </div>
 
         {error && <ErrorBanner message={error} />}
 
-        <Card className="flex flex-col gap-4 p-6">
+        <Card className="flex flex-col gap-5 p-8">
           <p className="text-lg text-foreground">{question.question}</p>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {question.options.map((option, i) => {
               const isSelected = selectedOption === i;
               const isCorrectOption = attemptResult !== null && i === attemptResult.correct_option_index;
@@ -232,7 +236,7 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
                   type="button"
                   disabled={submitting || attemptResult !== null}
                   onClick={() => handleSelectOption(i)}
-                  className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors duration-150 disabled:cursor-not-allowed ${stateClasses}`}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm transition-colors duration-150 disabled:cursor-not-allowed ${stateClasses}`}
                 >
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-semibold text-muted">
                     {OPTION_LETTERS[i]}
@@ -246,19 +250,18 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
           </div>
 
           {attemptResult && (
-            <div className="flex items-center justify-between border-t border-border pt-4">
-              <span
-                className={`flex items-center gap-2 text-sm font-medium ${
-                  attemptResult.correct ? "text-success" : "text-danger-foreground"
-                }`}
+            <div className="flex items-center justify-between border-t border-border pt-5">
+              <Badge
+                variant={attemptResult.correct ? "success" : "danger"}
+                className="gap-1.5 py-1.5 text-sm"
               >
                 {attemptResult.correct ? (
-                  <CheckCircle2 className="h-4 w-4" strokeWidth={2.25} />
+                  <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                 ) : (
-                  <XCircle className="h-4 w-4" strokeWidth={2.25} />
+                  <XCircle className="h-3.5 w-3.5" strokeWidth={2.25} />
                 )}
                 {attemptResult.correct ? "Correct!" : "Incorrect"}
-              </span>
+              </Badge>
               <Button icon={ChevronRight} onClick={handleNext}>
                 {index + 1 < questions.length ? "Next" : "See results"}
               </Button>
@@ -273,15 +276,12 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
   const scorePercent = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="flex flex-col items-center gap-2 p-6 text-center">
+    <div className="flex flex-col gap-6">
+      <Card className="flex flex-col items-center gap-3 p-8 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
           <Trophy className="h-6 w-6" strokeWidth={2} />
         </span>
-        <p className="text-2xl font-semibold text-foreground">
-          {correctCount} / {total}
-        </p>
-        <p className="text-sm text-muted">{scorePercent}% correct this attempt</p>
+        <Stat value={`${correctCount} / ${total}`} label={`${scorePercent}% correct this attempt`} />
       </Card>
 
       <div className="flex flex-col gap-3">
@@ -292,23 +292,18 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
           <EmptyState icon={ListChecks} title="No mastery data yet" />
         )}
         {mastery !== null && mastery.length > 0 && (
-          <Card className="flex flex-col gap-4 p-5">
+          <Card className="flex flex-col gap-5 p-8">
             {mastery.map((m) => {
               const colors = masteryColor(m.mastery_percent);
               return (
-                <div key={m.topic} className="flex flex-col gap-1.5">
+                <div key={m.topic} className="flex flex-col gap-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-foreground">{m.topic}</span>
                     <span className={`font-medium ${colors.text}`}>
                       {m.mastery_percent}% ({m.correct_attempts}/{m.total_attempts})
                     </span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-border">
-                    <div
-                      className={`h-full rounded-full ${colors.bar}`}
-                      style={{ width: `${m.mastery_percent}%` }}
-                    />
-                  </div>
+                  <ProgressBar percent={m.mastery_percent} color={colors.bar} />
                 </div>
               );
             })}

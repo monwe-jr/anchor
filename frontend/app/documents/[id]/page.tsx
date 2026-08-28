@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { FileText, HelpCircle, Layers, ListChecks, StickyNote } from "lucide-react";
 import QuizPanel from "@/app/documents/[id]/QuizPanel";
 import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
-import { Card, PageHeader } from "@/app/components/ui";
+import { Card, PageHeader, Stat } from "@/app/components/ui";
 import { ApiError, Flashcard, Note, api } from "@/lib/api";
 
 type Tab = "notes" | "flashcards" | "quiz";
@@ -54,8 +54,13 @@ export default function DocumentDetailPage() {
     return <Loading label="Loading document..." />;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <PageHeader icon={FileText} title={`Document #${documentId}`} />
+
+      <Card className="grid grid-cols-2 gap-6 p-8">
+        <Stat value={notes.length} label="Notes" />
+        <Stat value={flashcards.length} label="Flashcards" />
+      </Card>
 
       <div className="flex gap-6 border-b border-border">
         {TABS.map(({ tab: t, label, icon: Icon }) => (
@@ -80,10 +85,10 @@ export default function DocumentDetailPage() {
           {notes.length === 0 ? (
             <EmptyState icon={StickyNote} title="No notes generated" />
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-4">
               {notes.map((note) => (
                 <li key={note.id}>
-                  <Card className="p-4 text-sm text-foreground">{note.content}</Card>
+                  <Card className="p-6 text-sm text-foreground">{note.content}</Card>
                 </li>
               ))}
             </ul>
@@ -96,14 +101,14 @@ export default function DocumentDetailPage() {
           {flashcards.length === 0 ? (
             <EmptyState icon={Layers} title="No flashcards generated" />
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-4">
               {flashcards.map((card) => {
                 const isRevealed = revealed.has(card.id);
                 return (
                   <li key={card.id}>
                     <Card
                       interactive
-                      className="cursor-pointer p-4 text-sm"
+                      className="cursor-pointer p-6 text-sm"
                       onClick={() => toggleReveal(card.id)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -122,7 +127,7 @@ export default function DocumentDetailPage() {
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground">{card.question}</div>
                           {isRevealed ? (
-                            <div className="mt-2 border-t border-border pt-2 text-muted">
+                            <div className="mt-3 border-t border-border pt-3 text-muted">
                               {card.answer}
                             </div>
                           ) : (

@@ -11,7 +11,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
-import { Button, Card, PageHeader } from "@/app/components/ui";
+import { Button, Card, PageHeader, ProgressBar } from "@/app/components/ui";
 import { ApiError, DueCard, Grade, api } from "@/lib/api";
 
 const GRADES: { grade: Grade; label: string; icon: typeof RotateCcw; className: string }[] = [
@@ -87,9 +87,11 @@ export default function ReviewPage() {
         }
       />
 
+      <ProgressBar percent={(index / cards.length) * 100} />
+
       {error && <ErrorBanner message={error} />}
 
-      <Card className="flex min-h-48 flex-col justify-between gap-6 p-6">
+      <Card className="flex min-h-56 flex-col justify-between gap-6 p-8">
         <div className="flex flex-col gap-4">
           <p className="text-lg text-foreground">{card.question}</p>
           {revealed && (
@@ -102,14 +104,14 @@ export default function ReviewPage() {
             Reveal answer
           </Button>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {GRADES.map((g) => (
               <button
                 key={g.grade}
                 type="button"
                 disabled={grading}
                 onClick={() => handleGrade(g.grade)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${g.className}`}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-white transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${g.className}`}
               >
                 <g.icon className="h-4 w-4" strokeWidth={2.25} />
                 {g.label}

@@ -13,7 +13,7 @@ export function Loading({ label = "Loading..." }: { label?: string }) {
 
 export function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger-foreground">
+    <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-4 text-sm text-danger-foreground">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
       <span>{message}</span>
     </div>
@@ -32,8 +32,8 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-14 text-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-faint">
+    <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border px-6 py-16 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-faint">
         <Icon className="h-6 w-6" strokeWidth={1.75} />
       </span>
       <div>

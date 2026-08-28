@@ -15,22 +15,22 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar px-3 py-5">
-      <div className="flex items-center gap-2 px-2 pb-6">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-sidebar px-4 py-6">
+      <div className="flex items-center gap-2.5 px-2 pb-8">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent">
           <Anchor className="h-4.5 w-4.5" strokeWidth={2.25} />
         </span>
         <span className="text-base font-semibold tracking-tight text-foreground">Anchor</span>
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav className="flex flex-col gap-1.5">
         {LINKS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
               href={href}
-              className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ${
+              className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-150 ${
                 active
                   ? "bg-accent/15 font-medium text-accent"
                   : "text-muted hover:bg-surface hover:text-foreground"

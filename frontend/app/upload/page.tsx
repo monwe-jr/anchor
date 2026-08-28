@@ -48,14 +48,14 @@ export default function UploadPage() {
         description="Paste text or upload a PDF/DOCX file to generate notes and flashcards."
       />
 
-      <Card className="p-5">
+      <Card className="p-8">
         <div className="flex gap-2">
           {modeTabs.map(({ mode: m, label, icon: Icon }) => (
             <button
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+              className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
                 mode === m
                   ? "bg-accent text-accent-foreground"
                   : "border border-border text-muted hover:bg-surface-hover hover:text-foreground"
@@ -67,17 +67,17 @@ export default function UploadPage() {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-5">
           {mode === "text" ? (
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Paste source text here..."
               rows={12}
-              className="w-full resize-y rounded-lg border border-border bg-background p-3 text-sm text-foreground placeholder:text-faint focus:border-accent focus:outline-none"
+              className="w-full resize-y rounded-xl border border-border bg-background p-3 text-sm text-foreground placeholder:text-faint focus:border-accent focus:outline-none"
             />
           ) : (
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-background px-4 py-10 text-center transition-colors duration-150 hover:border-border-strong">
+            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-background px-4 py-14 text-center transition-colors duration-150 hover:border-border-strong">
               <FileUp className="h-6 w-6 text-faint" strokeWidth={1.75} />
               <span className="text-sm text-foreground">
                 {file ? file.name : "Choose a PDF or DOCX file"}

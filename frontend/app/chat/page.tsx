@@ -56,12 +56,12 @@ export default function ChatPage() {
         description="Ask grounded questions about your documents."
       />
 
-      <Card className="p-5">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <Card className="p-8">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <select
             value={documentId}
             onChange={(e) => setDocumentId(e.target.value)}
-            className="w-fit rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+            className="w-fit rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           >
             <option value="">All documents</option>
             {documents.map((doc) => (
@@ -76,7 +76,7 @@ export default function ChatPage() {
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="Ask a question about your documents..."
             rows={3}
-            className="w-full resize-y rounded-lg border border-border bg-background p-3 text-sm text-foreground placeholder:text-faint focus:border-accent focus:outline-none"
+            className="w-full resize-y rounded-xl border border-border bg-background p-3 text-sm text-foreground placeholder:text-faint focus:border-accent focus:outline-none"
           />
 
           <Button type="submit" disabled={!question.trim() || submitting}>
@@ -101,21 +101,21 @@ export default function ChatPage() {
       )}
 
       {result && (
-        <div className="flex flex-col gap-4">
-          <Card className="flex items-start gap-3 p-4">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
+        <div className="flex flex-col gap-5">
+          <Card className="flex items-start gap-4 p-6">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
               <Bot className="h-4 w-4" strokeWidth={2.25} />
             </span>
             <p className="pt-1 text-sm text-foreground">{result.answer}</p>
           </Card>
 
           {result.citations.length > 0 && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Quote className="h-4 w-4 text-accent" strokeWidth={2.25} />
                 Sources
               </h2>
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-3">
                 {result.citations.map((citation, i) => {
                   const isOpen = expanded.has(i);
                   return (
@@ -124,7 +124,7 @@ export default function ChatPage() {
                         <button
                           type="button"
                           onClick={() => toggleExpanded(i)}
-                          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors duration-150 hover:bg-surface-hover"
+                          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left text-sm transition-colors duration-150 hover:bg-surface-hover"
                         >
                           <span className="min-w-0 truncate text-foreground">
                             Doc {citation.document_id} &middot; chunk{" "}
@@ -140,7 +140,7 @@ export default function ChatPage() {
                           )}
                         </button>
                         {isOpen && (
-                          <div className="border-t border-border px-4 py-3 text-sm text-muted">
+                          <div className="border-t border-border px-5 py-4 text-sm text-muted">
                             {citation.chunk_text}
                           </div>
                         )}

@@ -1,6 +1,8 @@
+import json
 import os
 import tempfile
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -11,9 +13,11 @@ from db.schema import get_connection, init_db
 from engine.ollama import OllamaEngine
 from engine.resilient import resilient
 from generation.pipeline import run_pipeline
+from generation.quiz import Difficulty, generate_quiz
 from ingest import ingest
 from rag.chat import answer_question
 from study.fsrs import Grade
+from study.mastery import compute_mastery
 from study.scheduler import get_due_cards, record_review
 
 
@@ -251,3 +255,121 @@ def review_flashcard(flashcard_id: int, request: ReviewRequest) -> dict:
         conn.close()
 
     return {"status": "ok"}
+
+
+class QuizGenerateRequest(BaseModel):
+    count: int = 10
+    difficulty: Difficulty = "intermediate"
+
+
+class QuizQuestionOut(BaseModel):
+    id: int
+    question: str
+    options: list[str]
+    topic: str
+    difficulty: str
+
+
+def _quiz_question_out(row) -> QuizQuestionOut:
+    return QuizQuestionOut(
+        id=row["id"],
+        question=row["question"],
+        options=json.loads(row["options"]),
+        topic=row["topic"],
+        difficulty=row["difficulty"],
+    )
+
+
+@app.post("/documents/{document_id}/quiz")
+async def create_document_quiz(document_id: int, request: QuizGenerateRequest) -> list[QuizQuestionOut]:
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        questions = await generate_quiz(
+            document_id, _engine, count=request.count, difficulty=request.difficulty, conn=conn
+        )
+    finally:
+        conn.close()
+
+    return [
+        QuizQuestionOut(
+            id=q.id, question=q.question, options=q.options, topic=q.topic, difficulty=q.difficulty
+        )
+        for q in questions
+    ]
+
+
+@app.get("/documents/{document_id}/quiz")
+def get_document_quiz(document_id: int) -> list[QuizQuestionOut]:
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        rows = conn.execute(
+            "SELECT id, question, options, topic, difficulty FROM quiz_questions "
+            "WHERE document_id = ? ORDER BY id",
+            (document_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [_quiz_question_out(row) for row in rows]
+
+
+class QuizAttemptRequest(BaseModel):
+    chosen_option_index: int
+
+
+class QuizAttemptResponse(BaseModel):
+    correct: bool
+    correct_option_index: int
+
+
+@app.post("/quiz/{question_id}/attempt")
+def submit_quiz_attempt(question_id: int, request: QuizAttemptRequest) -> QuizAttemptResponse:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT correct_option_index FROM quiz_questions WHERE id = ?", (question_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Quiz question {question_id} not found")
+
+        correct_option_index = row["correct_option_index"]
+        correct = request.chosen_option_index == correct_option_index
+        conn.execute(
+            "INSERT INTO quiz_attempts (question_id, chosen_option_index, correct, answered_at) "
+            "VALUES (?, ?, ?, ?)",
+            (question_id, request.chosen_option_index, correct, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return QuizAttemptResponse(correct=correct, correct_option_index=correct_option_index)
+
+
+class TopicMasteryOut(BaseModel):
+    topic: str
+    total_attempts: int
+    correct_attempts: int
+    mastery_percent: float
+
+
+@app.get("/documents/{document_id}/mastery")
+def get_document_mastery(document_id: int) -> list[TopicMasteryOut]:
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        mastery = compute_mastery(document_id, conn=conn)
+    finally:
+        conn.close()
+
+    return [
+        TopicMasteryOut(
+            topic=m.topic,
+            total_attempts=m.total_attempts,
+            correct_attempts=m.correct_attempts,
+            mastery_percent=m.mastery_percent,
+        )
+        for m in mastery
+    ]

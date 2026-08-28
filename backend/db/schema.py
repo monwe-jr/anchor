@@ -50,6 +50,24 @@ CREATE TABLE IF NOT EXISTS review_state (
     last_reviewed_at TEXT,
     review_count INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS quiz_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id INTEGER NOT NULL REFERENCES documents(id),
+    question TEXT NOT NULL,
+    options TEXT NOT NULL,
+    correct_option_index INTEGER NOT NULL,
+    topic TEXT NOT NULL,
+    difficulty TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id INTEGER NOT NULL REFERENCES quiz_questions(id),
+    chosen_option_index INTEGER NOT NULL,
+    correct INTEGER NOT NULL,
+    answered_at TEXT NOT NULL
+);
 """
 
 

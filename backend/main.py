@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
 
 from db.schema import get_connection, init_db
+from documents.service import delete_document as delete_document_cascade
+from documents.service import rename_document
 from engine.ollama import OllamaEngine
 from engine.resilient import resilient
 from generation.pipeline import run_pipeline
@@ -138,44 +140,102 @@ async def ingest_document(request: Request) -> IngestResponse:
 class DocumentSummary(BaseModel):
     id: int
     source_name: str
+    display_name: str
     source_type: str
     created_at: str
     job_status: str | None = None
+    current_stage: str | None = None
+    error_message: str | None = None
+
+
+_DOCUMENT_SELECT_SQL = """
+    SELECT d.id, d.source_name, d.display_name, d.source_type, d.created_at,
+           j.status AS job_status, j.current_stage, j.error_message
+    FROM documents d
+    LEFT JOIN jobs j ON j.id = (
+        SELECT id FROM jobs WHERE document_id = d.id ORDER BY id DESC LIMIT 1
+    )
+"""
+
+
+def _document_summary_from_row(row) -> DocumentSummary:
+    return DocumentSummary(
+        id=row["id"],
+        source_name=row["source_name"],
+        display_name=row["display_name"] or row["source_name"],
+        source_type=row["source_type"],
+        created_at=row["created_at"],
+        job_status=row["job_status"],
+        current_stage=row["current_stage"],
+        error_message=row["error_message"],
+    )
 
 
 @app.get("/documents")
 def list_documents() -> list[DocumentSummary]:
     conn = get_connection()
     try:
-        rows = conn.execute(
-            """
-            SELECT d.id, d.source_name, d.source_type, d.created_at, j.status AS job_status
-            FROM documents d
-            LEFT JOIN jobs j ON j.id = (
-                SELECT id FROM jobs WHERE document_id = d.id ORDER BY id DESC LIMIT 1
-            )
-            ORDER BY d.id DESC
-            """
-        ).fetchall()
+        rows = conn.execute(f"{_DOCUMENT_SELECT_SQL} ORDER BY d.id DESC").fetchall()
     finally:
         conn.close()
 
-    return [
-        DocumentSummary(
-            id=row["id"],
-            source_name=row["source_name"],
-            source_type=row["source_type"],
-            created_at=row["created_at"],
-            job_status=row["job_status"],
-        )
-        for row in rows
-    ]
+    return [_document_summary_from_row(row) for row in rows]
 
 
 def _require_document(conn, document_id: int) -> None:
     row = conn.execute("SELECT id FROM documents WHERE id = ?", (document_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+
+@app.get("/documents/{document_id}")
+def get_document(document_id: int) -> DocumentSummary:
+    conn = get_connection()
+    try:
+        row = conn.execute(f"{_DOCUMENT_SELECT_SQL} WHERE d.id = ?", (document_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+    finally:
+        conn.close()
+
+    return _document_summary_from_row(row)
+
+
+class DocumentUpdateRequest(BaseModel):
+    display_name: str
+
+
+@app.patch("/documents/{document_id}")
+def update_document(document_id: int, request: DocumentUpdateRequest) -> DocumentSummary:
+    display_name = request.display_name.strip()
+    if not display_name:
+        raise HTTPException(status_code=400, detail="display_name must not be empty")
+
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        rename_document(conn, document_id, display_name)
+        conn.commit()
+        row = conn.execute(f"{_DOCUMENT_SELECT_SQL} WHERE d.id = ?", (document_id,)).fetchone()
+    finally:
+        conn.close()
+
+    return _document_summary_from_row(row)
+
+
+@app.delete("/documents/{document_id}", status_code=204)
+def delete_document(document_id: int) -> None:
+    conn = get_connection()
+    try:
+        _require_document(conn, document_id)
+        try:
+            delete_document_cascade(conn, document_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    finally:
+        conn.close()
 
 
 class Note(BaseModel):

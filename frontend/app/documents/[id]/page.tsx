@@ -4,9 +4,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FileText, HelpCircle, Layers, ListChecks, StickyNote } from "lucide-react";
 import QuizPanel from "@/app/documents/[id]/QuizPanel";
+import { DocumentStatusBadge } from "@/app/components/DocumentStatus";
+import { EditableTitle } from "@/app/components/EditableTitle";
 import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
 import { Card, PageHeader, Stat } from "@/app/components/ui";
-import { ApiError, Flashcard, Note, api } from "@/lib/api";
+import { ApiError, DocumentSummary, Flashcard, Note, api } from "@/lib/api";
 
 type Tab = "notes" | "flashcards" | "quiz";
 
@@ -20,6 +22,7 @@ export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
   const documentId = Number(params.id);
 
+  const [doc, setDoc] = useState<DocumentSummary | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[] | null>(null);
@@ -28,10 +31,12 @@ export default function DocumentDetailPage() {
 
   useEffect(() => {
     Promise.all([
+      api.getDocument(documentId),
       api.getDocumentNotes(documentId),
       api.getDocumentFlashcards(documentId),
     ])
-      .then(([n, f]) => {
+      .then(([fetchedDoc, n, f]) => {
+        setDoc(fetchedDoc);
         setNotes(n);
         setFlashcards(f);
       })
@@ -39,6 +44,11 @@ export default function DocumentDetailPage() {
         setError(err instanceof ApiError ? err.message : "Failed to load document.")
       );
   }, [documentId]);
+
+  async function handleRename(newName: string) {
+    const updated = await api.renameDocument(documentId, newName);
+    setDoc(updated);
+  }
 
   function toggleReveal(id: number) {
     setRevealed((prev) => {
@@ -50,12 +60,30 @@ export default function DocumentDetailPage() {
   }
 
   if (error) return <ErrorBanner message={error} />;
-  if (notes === null || flashcards === null)
+  if (notes === null || flashcards === null || doc === null)
     return <Loading label="Loading document..." />;
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader icon={FileText} title={`Document #${documentId}`} />
+      <PageHeader
+        icon={FileText}
+        title={
+          <EditableTitle
+            value={doc.display_name}
+            onSave={handleRename}
+            textClassName="text-2xl font-semibold tracking-tight text-foreground"
+            inputClassName="text-2xl font-semibold"
+          />
+        }
+        description={doc.source_name}
+        action={
+          <DocumentStatusBadge
+            status={doc.job_status}
+            currentStage={doc.current_stage}
+            errorMessage={doc.error_message}
+          />
+        }
+      />
 
       <Card className="grid grid-cols-2 gap-6 p-8">
         <Stat value={notes.length} label="Notes" />

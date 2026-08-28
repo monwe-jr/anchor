@@ -28,9 +28,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export type DocumentSummary = {
   id: number;
   source_name: string;
+  display_name: string;
   source_type: string;
   created_at: string;
   job_status: string | null;
+  current_stage: string | null;
+  error_message: string | null;
 };
 
 export type Note = {
@@ -95,6 +98,18 @@ export type TopicMastery = {
 
 export const api = {
   listDocuments: () => request<DocumentSummary[]>("/documents"),
+
+  getDocument: (documentId: number) => request<DocumentSummary>(`/documents/${documentId}`),
+
+  renameDocument: (documentId: number, displayName: string) =>
+    request<DocumentSummary>(`/documents/${documentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: displayName }),
+    }),
+
+  deleteDocument: (documentId: number) =>
+    request<void>(`/documents/${documentId}`, { method: "DELETE" }),
 
   getDocumentNotes: (documentId: number) =>
     request<Note[]>(`/documents/${documentId}/notes`),

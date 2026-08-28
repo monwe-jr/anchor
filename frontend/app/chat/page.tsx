@@ -66,7 +66,7 @@ export default function ChatPage() {
             <option value="">All documents</option>
             {documents.map((doc) => (
               <option key={doc.id} value={doc.id}>
-                {doc.source_name}
+                {doc.display_name}
               </option>
             ))}
           </select>

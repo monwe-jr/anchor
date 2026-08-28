@@ -136,7 +136,14 @@ async def run_pipeline(
 
         except Exception as exc:
             conn.rollback()
-            _update_job(conn, job_id, status="failed", current_stage=None, error_message=str(exc))
+            # current_stage was already committed by the last _update_job call for
+            # the stage that was running when this failed; preserve it so callers
+            # can tell which stage the job died in, instead of clearing it to None.
+            failed_stage_row = conn.execute(
+                "SELECT current_stage FROM jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+            failed_stage = failed_stage_row["current_stage"] if failed_stage_row else None
+            _update_job(conn, job_id, status="failed", current_stage=failed_stage, error_message=str(exc))
             raise
     finally:
         if owns_connection:

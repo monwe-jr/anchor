@@ -71,6 +71,28 @@ export type IngestResponse = {
   job_id: number;
 };
 
+export type Difficulty = "beginner" | "intermediate" | "advanced";
+
+export type QuizQuestion = {
+  id: number;
+  question: string;
+  options: string[];
+  topic: string;
+  difficulty: string;
+};
+
+export type QuizAttemptResult = {
+  correct: boolean;
+  correct_option_index: number;
+};
+
+export type TopicMastery = {
+  topic: string;
+  total_attempts: number;
+  correct_attempts: number;
+  mastery_percent: number;
+};
+
 export const api = {
   listDocuments: () => request<DocumentSummary[]>("/documents"),
 
@@ -108,4 +130,22 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, document_id: documentId }),
     }),
+
+  generateQuiz: (documentId: number, count: number, difficulty: Difficulty) =>
+    request<QuizQuestion[]>(`/documents/${documentId}/quiz`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count, difficulty }),
+    }),
+
+  getQuiz: (documentId: number) => request<QuizQuestion[]>(`/documents/${documentId}/quiz`),
+
+  submitQuizAttempt: (questionId: number, chosenOptionIndex: number) =>
+    request<QuizAttemptResult>(`/quiz/${questionId}/attempt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chosen_option_index: chosenOptionIndex }),
+    }),
+
+  getMastery: (documentId: number) => request<TopicMastery[]>(`/documents/${documentId}/mastery`),
 };

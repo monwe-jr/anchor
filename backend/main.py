@@ -15,7 +15,7 @@ from documents.service import delete_document as delete_document_cascade
 from documents.service import rename_document
 from engine.ollama import OllamaEngine
 from engine.resilient import resilient
-from generation.pipeline import create_job, run_pipeline_stages
+from generation.pipeline import create_job, recover_interrupted_jobs, run_pipeline_stages
 from generation.quiz import Difficulty, generate_quiz
 from ingest import ingest
 from rag.chat import answer_question
@@ -29,6 +29,10 @@ async def lifespan(app: FastAPI):
     conn = get_connection()
     try:
         init_db(conn)
+        # Any job still "pending"/"chunking"/"embedding"/"generating" here
+        # belongs to a process that no longer exists (the previous run died
+        # or was restarted mid-job) — reconcile it before serving requests.
+        recover_interrupted_jobs(conn)
     finally:
         conn.close()
     yield

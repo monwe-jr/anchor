@@ -79,6 +79,27 @@ def create_job(conn: sqlite3.Connection, ingest_result: IngestResult) -> tuple[i
     return document_id, job_id
 
 
+def recover_interrupted_jobs(conn: sqlite3.Connection) -> int:
+    """Fail out any job left in a non-terminal status, e.g. by a server crash.
+
+    "pending"/"chunking"/"embedding"/"generating" only ever advance via
+    run_pipeline_stages, which is running in-process. If the process is
+    killed or restarted mid-job, that coroutine never resumes and never
+    reaches its except block, so the row is left claiming an in-progress
+    stage indefinitely even though nothing is working on it. Call this once
+    at startup, before any request is served, to reconcile those rows so the
+    UI doesn't show a document "Generating..." forever. current_stage is
+    left as-is so callers can still see which stage it died in.
+    """
+    cursor = conn.execute(
+        "UPDATE jobs SET status = 'failed', error_message = ?, updated_at = ? "
+        "WHERE status NOT IN ('done', 'failed')",
+        ("Interrupted by server restart", _now()),
+    )
+    conn.commit()
+    return cursor.rowcount
+
+
 async def run_pipeline_stages(
     conn: sqlite3.Connection,
     document_id: int,

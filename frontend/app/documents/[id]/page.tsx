@@ -4,7 +4,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FileText, HelpCircle, Layers, ListChecks, StickyNote } from "lucide-react";
 import QuizPanel from "@/app/documents/[id]/QuizPanel";
-import { DocumentStatusBadge } from "@/app/components/DocumentStatus";
+import {
+  DocumentStatusBadge,
+  DocumentStatusBanner,
+  documentStatusVariant,
+} from "@/app/components/DocumentStatus";
 import { EditableTitle } from "@/app/components/EditableTitle";
 import { EmptyState, ErrorBanner, Loading } from "@/app/components/StatusMessage";
 import { Card, PageHeader, Stat } from "@/app/components/ui";
@@ -30,19 +34,60 @@ export default function DocumentDetailPage() {
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    // While the job is still in progress, keep re-fetching the document
+    // every ~2.5s so the status banner tracks current_stage live. Once it
+    // reaches a terminal state, stop polling; if it finished successfully,
+    // pull the freshly generated notes/flashcards too so the tabs update
+    // without the user having to reload the page.
+    async function poll() {
+      try {
+        const updated = await api.getDocument(documentId);
+        if (cancelled) return;
+        setDoc(updated);
+
+        const variant = documentStatusVariant(updated.job_status);
+        if (variant === "accent") {
+          timer = setTimeout(poll, 2500);
+        } else if (variant === "success") {
+          const [n, f] = await Promise.all([
+            api.getDocumentNotes(documentId),
+            api.getDocumentFlashcards(documentId),
+          ]);
+          if (!cancelled) {
+            setNotes(n);
+            setFlashcards(f);
+          }
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(poll, 2500);
+      }
+    }
+
     Promise.all([
       api.getDocument(documentId),
       api.getDocumentNotes(documentId),
       api.getDocumentFlashcards(documentId),
     ])
       .then(([fetchedDoc, n, f]) => {
+        if (cancelled) return;
         setDoc(fetchedDoc);
         setNotes(n);
         setFlashcards(f);
+        if (documentStatusVariant(fetchedDoc.job_status) === "accent") {
+          timer = setTimeout(poll, 2500);
+        }
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load document.")
       );
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [documentId]);
 
   async function handleRename(newName: string) {
@@ -83,6 +128,12 @@ export default function DocumentDetailPage() {
             errorMessage={doc.error_message}
           />
         }
+      />
+
+      <DocumentStatusBanner
+        status={doc.job_status}
+        currentStage={doc.current_stage}
+        errorMessage={doc.error_message}
       />
 
       <Card className="grid grid-cols-2 gap-6 p-8">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/app/components/ui";
 
 export type StatusVariant = "accent" | "success" | "danger" | "neutral";
@@ -16,6 +17,54 @@ export function documentStatusVariant(status: string | null): StatusVariant {
   // Every other status ("pending", "chunking", "embedding", "generating", ...)
   // is some form of in-progress work, so it counts as "processing".
   return "accent";
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  pending: "Queued for processing...",
+  chunking: "Splitting document into chunks...",
+  embedding: "Generating embeddings...",
+  generating: "Generating notes and flashcards...",
+};
+
+/** Status banner for the document detail page: shows nothing once the job is
+ * done, an active/spinning banner while in progress, or an error banner (with
+ * the failed stage and error message) if the job failed. */
+export function DocumentStatusBanner({
+  status,
+  currentStage,
+  errorMessage,
+}: {
+  status: string | null;
+  currentStage: string | null;
+  errorMessage: string | null;
+}) {
+  const variant = documentStatusVariant(status);
+
+  if (variant === "danger") {
+    return (
+      <div className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-4 text-sm text-danger-foreground">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.25} />
+        <div>
+          <p className="font-medium">
+            {currentStage ? `Failed during ${currentStage}` : "Processing failed"}
+          </p>
+          <p className="mt-1 opacity-90">{errorMessage ?? "No error details available."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "accent") {
+    const label = (currentStage && STAGE_LABELS[currentStage]) || `${currentStage ?? status}...`;
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-5 py-4 text-sm text-accent">
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2.25} />
+        <span>{label}</span>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export function DocumentStatusBadge({

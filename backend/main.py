@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import tempfile
@@ -14,7 +15,7 @@ from documents.service import delete_document as delete_document_cascade
 from documents.service import rename_document
 from engine.ollama import OllamaEngine
 from engine.resilient import resilient
-from generation.pipeline import run_pipeline
+from generation.pipeline import create_job, run_pipeline_stages
 from generation.quiz import Difficulty, generate_quiz
 from ingest import ingest
 from rag.chat import answer_question
@@ -96,6 +97,27 @@ class IngestResponse(BaseModel):
 
 _UPLOAD_EXTENSION_TO_SOURCE_TYPE = {".pdf": "pdf", ".docx": "docx"}
 
+# asyncio only holds a weak reference to a task, so a background pipeline run
+# must be kept alive here or it can be garbage-collected mid-flight.
+_background_pipeline_tasks: set[asyncio.Task] = set()
+
+
+def _run_pipeline_in_background(document_id: int, job_id: int, ingest_result) -> None:
+    async def _runner() -> None:
+        conn = get_connection()
+        try:
+            await run_pipeline_stages(conn, document_id, job_id, ingest_result, _engine)
+        except Exception:
+            # Failure is already recorded on the job row by run_pipeline_stages;
+            # there's no request left to propagate the exception to.
+            pass
+        finally:
+            conn.close()
+
+    task = asyncio.create_task(_runner())
+    _background_pipeline_tasks.add(task)
+    task.add_done_callback(_background_pipeline_tasks.discard)
+
 
 @app.post("/ingest")
 async def ingest_document(request: Request) -> IngestResponse:
@@ -129,12 +151,13 @@ async def ingest_document(request: Request) -> IngestResponse:
 
     conn = get_connection()
     try:
-        job_id = await run_pipeline(ingest_result, _engine, conn=conn)
-        row = conn.execute("SELECT document_id FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        document_id, job_id = create_job(conn, ingest_result)
     finally:
         conn.close()
 
-    return IngestResponse(document_id=row["document_id"], job_id=job_id)
+    _run_pipeline_in_background(document_id, job_id, ingest_result)
+
+    return IngestResponse(document_id=document_id, job_id=job_id)
 
 
 class DocumentSummary(BaseModel):

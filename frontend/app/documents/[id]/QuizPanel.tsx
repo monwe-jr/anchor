@@ -113,23 +113,39 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
     }
   }
 
-  async function handleNext() {
-    if (index + 1 < questions.length) {
-      setIndex((i) => i + 1);
-      setSelectedOption(null);
-      setAttemptResult(null);
-      return;
-    }
+  function handleNext() {
+    // Clamp with a functional update so a duplicated call in the same
+    // render batch (e.g. a double-click on "Next") can never push index
+    // past questions.length — it was previously derived from the `index`
+    // closed over at render time, so two calls landing before a re-render
+    // both saw the same stale value and both incremented, overshooting by
+    // one. Reaching the end is now a render-time derivation (below)
+    // instead of a check here, so this function no longer needs to know
+    // where the quiz ends.
+    setIndex((i) => Math.min(i + 1, questions.length));
+    setSelectedOption(null);
+    setAttemptResult(null);
+  }
 
+  // Derived state, adjusted during render rather than in an effect (per
+  // https://react.dev/learn/you-might-not-need-an-effect): once `index`
+  // has caught up to questions.length there's no question left to show,
+  // so this bails out of the current render and re-renders with the
+  // results stage before anything paints.
+  if (stage === "taking" && questions.length > 0 && index >= questions.length) {
     setStage("results");
     setMasteryError(null);
-    try {
-      const m = await api.getMastery(documentId);
-      setMastery(m);
-    } catch (err) {
-      setMasteryError(err instanceof ApiError ? err.message : "Failed to load mastery breakdown.");
-    }
   }
+
+  useEffect(() => {
+    if (stage !== "results") return;
+    api
+      .getMastery(documentId)
+      .then((m) => setMastery(m))
+      .catch((err) => {
+        setMasteryError(err instanceof ApiError ? err.message : "Failed to load mastery breakdown.");
+      });
+  }, [stage, documentId]);
 
   if (stage === "loading") return <Loading label="Loading quiz..." />;
 
@@ -196,7 +212,29 @@ export default function QuizPanel({ documentId }: { documentId: number }) {
   }
 
   if (stage === "taking") {
+    if (questions.length === 0) {
+      return (
+        <EmptyState
+          icon={ListChecks}
+          title="No questions to show"
+          description="This quiz doesn't have any questions. Go back and generate one."
+          action={
+            <Button variant="secondary" icon={RotateCcw} onClick={() => setStage("setup")}>
+              Back to setup
+            </Button>
+          }
+        />
+      );
+    }
+
     const question = questions[index];
+    if (!question) {
+      // index has reached (or passed) questions.length — the effect above
+      // is about to move us to the results stage. Render nothing for this
+      // one frame rather than reading .topic off an undefined question.
+      return null;
+    }
+
     const progressPercent = ((index + (attemptResult ? 1 : 0)) / questions.length) * 100;
     return (
       <div className="flex flex-col gap-4">
